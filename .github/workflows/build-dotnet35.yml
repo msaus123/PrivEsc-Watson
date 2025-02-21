@@ -7,37 +7,37 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v1
 
-      - name: Find and Build Solution
-        run: |
-          $solution = Get-ChildItem -Path . -Filter "*.sln" -Recurse | Select-Object -First 1
-          if ($solution -eq $null) { Write-Error "Solution file not found!" }
-          msbuild $solution.FullName /p:Configuration=Release /p:Platform="Any CPU"
+    - name: Find and Build Solution
+      run: |
+        $solution = Get-ChildItem -Path . -Filter "*.sln" -Recurse | Select-Object -First 1
+        if ($solution -eq $null) { Write-Error "Solution file not found!" }
+        msbuild $solution.FullName /p:Configuration=Release /p:Platform="Any CPU"
 
-      - name: Find Compiled .exe
-        id: find_exe
-        run: |
-          $exeFile = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.FullName -match "bin\\Release" } | Select-Object -First 1
-          if ($exeFile -eq $null) { Write-Error "Executable file not found!" }
-          echo "EXE_PATH=$($exeFile.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+    - name: Find Compiled .exe
+      id: find_exe
+      run: |
+        $exeFile = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.FullName -match "\\bin\\Release\\" }
+        if ($exeFile -eq $null) { Write-Error "Executable file not found!" }
+        echo "EXE_PATH=$($exeFile.FullName)" >> $env:GITHUB_ENV
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-exe
-          path: ${{ env.EXE_PATH }}
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiled-exe
+        path: ${{ env.EXE_PATH }}
 
   release:
     needs: build
@@ -45,17 +45,17 @@ jobs:
     if: github.event_name == 'push'
 
     steps:
-      - name: Download Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: compiled-exe
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: compiled-exe
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: compiled-exe/*.exe
-          tag_name: v1.0.${{ github.run_number }}
-          release_name: Release v1.0.${{ github.run_number }}
-          body: "Automated release of .NET 3.5 application."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: compiled-exe/*.exe
+        tag_name: v1.0.${{ github.run_number }}
+        release_name: Release v1.0.${{ github.run_number }}
+        body: "Automated release of .NET 3.5 application."
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
