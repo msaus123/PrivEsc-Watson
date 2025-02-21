@@ -20,6 +20,9 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1
 
+    - name: Restore NuGet Packages
+      run: nuget restore
+
     - name: Find and Build Solution
       run: |
         $solution = Get-ChildItem -Path . -Filter "*.sln" -Recurse | Select-Object -First 1
