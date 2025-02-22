@@ -1,64 +1,41 @@
-name: Build and Release .NET 3.5 App
+name: Release
 
 on:
   push:
     branches:
-      - main
-  pull_request:
-    branches:
-      - main
-  workflow_dispatch: # Allow manual trigger
+      - master
+  workflow_dispatch:
 
 jobs:
-  build:
+
+  linux-windows-build:
+    name: CSharp Build
     runs-on: windows-latest
-
+    timeout-minutes: 45
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.1
+  
+    - name: Check out code
+      uses: actions/checkout@v2
 
-    - name: Restore NuGet Packages
-      run: nuget restore Watson.sln
-
-    - name: Find and Build Solution
+    - name: Git Fetch Tags
+      run: git fetch --prune --unshallow --tags -f
+      
+    - name: Create Git Tag
+      id: tag
       run: |
-        $solution = Get-ChildItem -Path . -Filter "*.sln" -Recurse | Select-Object -First 1
-        if ($solution -eq $null) { Write-Error "Solution file not found!" }
-        msbuild $solution.FullName /p:Configuration=Release /p:Platform="Any CPU"
-
-    - name: Find Compiled .exe
-      id: find_exe
+        $TAG_NAME = (Get-Date).ToString('yyyyMMddHHmmss')
+        echo "TAG_NAME=$TAG_NAME" >> $env:GITHUB_ENV
+        
+    - name: MSBuild
       run: |
-        $exeFile = Get-ChildItem -Path . -Recurse -Filter "*.exe" | Where-Object { $_.FullName -match "\\bin\\Release\\" }
-        if ($exeFile -eq $null) { Write-Error "Executable file not found!" }
-        echo "EXE_PATH=$($exeFile.FullName)" >> $env:GITHUB_ENV
+        msbuild.exe Watson.sln /p:Configuration=Release /p:Platform="Any CPU" /p:OutputPath=compiled/
+        dir Seatbelt/compiled
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload Release Package
+      uses: softprops/action-gh-release@v2
       with:
-        name: compiled-exe
-        path: ${{ env.EXE_PATH }}
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-
-    steps:
-    - name: Download Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: compiled-exe
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: compiled-exe/*.exe
-        tag_name: v1.0.${{ github.run_number }}
-        release_name: Release v1.0.${{ github.run_number }}
-        body: "Automated release of .NET 3.5 application."
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        files: Seatbelt/compiled/*
+        tag_name: ${{ env.TAG_NAME }}
