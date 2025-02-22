@@ -29,11 +29,19 @@ jobs:
         $TAG_NAME = (Get-Date).ToString('yyyyMMddHHmmss')
         echo "TAG_NAME=$TAG_NAME" >> $env:GITHUB_ENV
         
-    - name: MSBuild
+    - name: Install .NET Framework 4.0 Developer Pack
       run: |
-        msbuild.exe Watson.sln /p:Configuration=Release /p:Platform="Any CPU" /p:OutputPath=compiled/
-        dir Seatbelt/compiled
+        choco install netfx-4.0.3-devpack
+        choco install netfx-4.0.3-devpack-full
 
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v2
+      with:
+        dotnet-version: '4.0.x'
+
+    - name: Build solution
+      run: dotnet build Watson.sln --configuration Release
+      
     - name: Upload Release Package
       uses: softprops/action-gh-release@v2
       with:
